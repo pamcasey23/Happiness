@@ -1,0 +1,345 @@
+## ---- World Happiness Capstone Project -------------------------
+## ----Install necessary packages --------------------------------
+if(!require(tidyverse)) install.packages(
+  "tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages(
+  "caret", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) install.packages(
+  "data.table", repos = "http://cran.us.r-project.org")
+if(!require(ggcorrplot)) install.packages(
+  "ggcorrplot", repos = "http://cran.us.r-project.org")
+if(!require(ggpubr)) install.packages(
+  "ggpubr", repos = "http://cran.us.r-project.org")
+library(tidyverse)
+library(caret)
+library(data.table)
+library(ggcorrplot)
+library(ggpubr)
+
+
+# ## ----Read_Files------------------------------------------------
+# # read WHR annual files from GitHub repo
+whr2015 <- read.csv("data\\2015.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2016 <- read.csv("data\\2016.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2017 <- read.csv("data\\2017.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2018 <- read.csv("data\\2018.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2019 <- read.csv("data\\2019.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2020 <- read.csv("data\\2020.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2021 <- read.csv("data\\2021.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2022 <- read.csv("data\\2022.csv", header=TRUE, stringsAsFactors = FALSE)
+
+## ----Pre-process_Data------------------------------------------------
+# whr2015 Drop unneeded columns then reorder where necessary 
+whr15 <- whr2015[-c(3,5)]
+whr15 <- whr15[,c(1,3:7,9,8,10,2)]
+whr16 <- whr2016[-c(3,5,6)]
+whr16 <- whr16[,c(1,3:7,9,8,10,2)]
+whr17 <- whr2017[-c(2,4,5)]
+whr18 <- whr2018[-1]
+whr19 <- whr2019[-1]
+whr20 <- whr2020[-c(4:13)]
+whr20 <- whr20[,c(1,3:10,2)]
+whr21 <- whr2021[-c(4:13)]
+whr21 <- whr21[,c(1,3:10,2)]
+whr22 <- whr2022[-c(1,4,5)]
+whr22 <- whr22[-c(147),c(1,2,4:9,3)]
+#Standardize column names across years
+colnames <- 
+  c("Country", "Happiness", "*GDPperCap", "*SocSupport","*LifeExp","*Freedom", "*Generosity", "*GovTrust","DystRes", "Region")
+colnames(whr15) <- colnames
+colnames(whr16) <- colnames
+colnames(whr17) <- colnames[-10]
+colnames(whr18) <- colnames[-c(9,10)]
+colnames(whr19) <- colnames[-c(9,10)]
+colnames(whr20) <- colnames
+colnames(whr21) <- colnames
+colnames(whr22) <- colnames[-10]
+
+## Add "year" column to each annual dataset
+whr15 <- cbind(year = 2015, whr15)
+whr16 <- cbind(year = 2016, whr16)
+whr17 <- cbind(year = 2017, whr17)
+whr18 <- cbind(year = 2018, whr18)
+whr19 <- cbind(year = 2019, whr19)
+whr20 <- cbind(year = 2020, whr20)
+whr21 <- cbind(year = 2021, whr21)
+whr22 <- cbind(year = 2022, whr22)
+
+## ----Bind all annual data into one dataset ----------------
+## Reduce columns to only common columns
+bind15 <- whr15[-c(10, 11)]
+bind16 <- whr16[-c(10, 11)]
+bind17 <- whr17[-10]
+bind18 <- whr18
+bind19 <- whr19
+bind20 <- whr20[-c(10,11)]
+bind21 <- whr21[-c(10,11)]
+bind22 <- whr22[-10]
+# Bind annual data sets into one
+whr_all <- rbind(bind15, bind16, bind17, bind18,
+                 bind19, bind20, bind21, bind22)
+
+## ----Happiness_Score_Stats--------------------------------
+annual_Happ_range <- whr_all %>% 
+  group_by(year) %>% summarize(Happiness.low=min(Happiness), Happiness.mean=mean(Happiness), Happiness.high=max(Happiness))
+annual_Happ_range
+
+## ----Happiness_Scores_Density_Plot ------------------------
+Happ_dens <- ggplot(whr19, aes(x=Happiness)) + 
+  geom_density(color="darkblue", fill="skyblue2")+
+  scale_x_continuous(limits = c(0,10))+
+  geom_vline(aes(xintercept=mean(Happiness)),
+            color="darkblue", linetype="dashed", size=1)+
+  geom_text(aes(label="mean =",1.1,0.275),size=3.5)+
+  geom_text(aes(label="sd =",1.3,0.225),size=3.5)+
+  geom_text(aes(label=round(mean(Happiness),2),2,0.275),size=3.5)+
+  geom_text(aes(label=round(sd(Happiness),2),2,0.225), size=3.5)+
+  labs(title="Happiness Score Distribution and Mean 2019",
+        x="Happiness Score", y="Density")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+Happ_dens
+
+## ----Violin_Plot_Years --------------------------------------
+plot_Happ_range <- whr_all %>% group_by(as.factor(year)) %>% 
+  ggplot(aes(x=as.factor(year), y=Happiness, 
+             color=as.factor(year)), 
+         title="Happiness Scores Distribution") + 
+  geom_violin(aes(color=as.factor(year)), trim=F)+
+  geom_boxplot(width=0.1)+
+  scale_y_continuous(limits = c(0,10))+
+  scale_color_brewer(palette = "Dark2")+
+  theme(legend.position="none")+
+  labs(title="Happiness Distribution",
+        x ="Years", y="Happiness Score")+
+  theme(plot.title = element_text(hjust = 0.5))
+plot_Happ_range
+
+## ----Calculate_Factor_Means_2019-----------------------------
+factors <- whr19 %>% select(4:9)
+factor_means <- colMeans(factors)
+factor_means
+
+## ----Factor_bar_chart ------------------------------
+factor <- colnames(factors)
+factor_means_df <- data.frame(factor, factor_means)
+factor_plot  <- factor_means_df %>% 
+  ggplot(aes(x=factor, y=factor_means, fill=factor)) +
+           geom_bar(stat="identity")+
+  theme(legend.position="none")+
+  scale_color_brewer(palette = "Dark2")+
+    labs(title="Factor Contributions to Happiness Score 2019",
+        x ="Factors", y="Contribution to Happiness")+
+  theme(plot.title = element_text(hjust = 0.5))
+factor_plot
+
+## ----Subset the 2020 dataset by selecting and renaming columns -------
+happy <- whr2020 %>% select(1:3,7:12)
+colnames(happy) <- c("Country", "Region", "Happiness", "Log_GDP_percap", "SocSupport", "LifeExp", "Freedom", "Generosity", "GovTrust")
+head(happy,5)
+tail(happy,5)
+
+
+## ----Plot of Log_GDP_v_Happiness ----------------------------------
+LogGDPvsHapp <- ggplot(data=happy, 
+                     aes(x=Log_GDP_percap, 
+                        y=Happiness))+
+      labs(x="log(GDP per capita)", 
+      y="Happiness Score",
+      color="Region",
+      title="Logged GDP per Capita vs Happiness 2020")+
+  geom_point(aes(color=Region))+
+  geom_smooth(method="lm",formula=y~x, 
+              color="slategray", size=0.7)+
+  stat_cor(aes(label=..r.label..),size=3.5, 
+           label.x=10, label.y=4.75) +
+  stat_regline_equation(label.y = 7.25, aes(label = ..eq.label..))
+LogGDPvsHapp
+
+
+## ----GDP_v_Happiness ------------------------------------------
+GDPvsHappExp <- happy %>%
+  mutate(GDP=10^Log_GDP_percap) %>% 
+  ggplot(aes(x=GDP, y=Happiness))+
+  labs(x="GDP per capita",
+       y="Happiness Score",
+       color="Region",
+       title="GDP per Capita vs Happiness 2020",
+       subtitle="Based on GDP per capita")+
+  geom_point(aes(color=Region))+
+  geom_smooth(method="glm", formula=y~log(x),
+              color="slategray", size=0.7)+
+  stat_cor(aes(label=..r.label..),size=3.5, 
+           label.x=8e+10, label.y=6.25)
+GDPvsHappExp
+
+
+## ----Plot of Life Expectancy vs Happiness ---------------------
+LifeExpVsHapp <- happy %>%
+  ggplot(aes(x=LifeExp, y=Happiness))+
+  labs(x="Life Expectancy(years)",
+       y="Happiness Score",
+       color="Region",
+       title="Life Expectancy vs Happiness 2020")+
+  geom_point(aes(color=Region))+
+  geom_smooth(method="glm", formula=y~x,
+              color="slategray", size=0.7)+
+  stat_cor(aes(label=..r.label..),size=3.5, 
+           label.x=50, label.y=6.75)+
+  stat_regline_equation(label.y = 7.25, aes(label = ..eq.label..))
+LifeExpVsHapp
+
+
+## ---- Facet Plot of remaining factors vs Happiness ----------
+#Reformat data into long dataset from wide
+happy_long <- happy %>% select(c(1:3,5,7:9))
+happy_long <- gather(happy_long, key="factor", 
+         value="value", 4:7)
+colnames(happy_long) <- 
+  (c('Country', 'Region', 'Happiness', 
+     'factor', 'value'))
+# Create Facet plot
+grid20 <- ggplot(happy_long,
+                 aes(value, Happiness)) +
+  geom_point(aes(color = factor(factor)))+
+  ylim(0,8)+
+  stat_smooth(method="lm", formula=y~x, 
+              color="gray35")+
+  facet_wrap(vars(factor))+
+  theme(legend.position="none")+
+  labs(title='Factors vs Happiness',
+       subtitle='2020 Raw Data',
+       y="Happiness Score")+
+  stat_cor(aes(label=..r.label..),size=3, 
+           label.x=0.15, label.y=1.65)+
+  stat_regline_equation(label.y = 1.5, 
+            aes(label = ..eq.label..),size=3.25)
+grid20
+
+
+
+## ----Factor Correlation Plot  -------------------------------
+raw_2020 <- happy %>% select(c(3:9)) %>% data.matrix()
+corr_all_2020 <- cor(raw_2020)
+cor_plot_2020 <- ggcorrplot(corr_all_2020, type="lower", outline.col="black", colors = c("steelblue3", "yellow", "red3"),
+           lab=TRUE, title="Happiness & Factor Correlation - 2020",
+           method="circle", digits=1, lab_size =2,
+           tl.cex=10)+
+  scale_colour_brewer(palette = "OrRd") +
+  theme(plot.title = element_text(hjust = 0.5))
+cor_plot_2020
+
+
+## ----Partition 2020 Dataset into Training sets and Validation -----------
+# First partition: 2020 Dataset into Training and Validation 
+set.seed(1, sample.kind="Rounding")
+model_test_index <- 
+  createDataPartition(y = happy$Happiness, times = 1, p = 0.17, list = FALSE)
+haptrain <- happy[-model_test_index,]
+hapval <- happy[model_test_index,]
+# Second partition: Training Partition into Training and test for 
+# KNN algorithm
+set.seed(2, sample.kind="Rounding")
+model_test_index2 <- 
+  createDataPartition(y = haptrain$Happiness, times = 1, p = 0.2, list = FALSE)
+knntrain <- haptrain[-model_test_index2,]
+knntest <- haptrain[model_test_index2,]
+
+## ----Prepare knntrain and knntest for KNN ML algorithm -----------------------
+# Choose columns and scale and center data
+knntrain_x <- knntrain[, c(4:7,9)]
+knntrain_x <- scale(knntrain_x)[,]
+knntrain_y <- knntrain[,3]
+
+knntest_x <- knntest[, c(4:7,9)]
+knntest_x <- scale(knntest_x)[,]
+knntest_y <- knntest[,3]
+
+
+## ----Use train with knn method to create a model --------------
+knnmodel <- train(knntrain_x, knntrain_y, method = "knn", tuneGrid = data.frame(k = seq(3, 21, 1)))
+knnmodel
+## ----Use predict to call knnmodel to predict Happiness Scores ----
+predknn_y <- predict(knnmodel, data.frame(knntest_x))
+## ----Create and use RMSE function to test accuracy of model ---------------
+RMSE <- function(true_score, predicted_score){
+  sqrt(mean((true_score - predicted_score)^2))
+}
+# Use RMSE function to compare test Happiness Scores to predicted
+rmse_knn <- RMSE(knntest_y, predknn_y)
+
+cat(" RMSE: ", round(rmse_knn,4))
+
+## ----Plot Test vs Predicted Happiness Scores -------------------
+x = 1:length(knntest_y)
+plot(x, knntest_y, col = "purple3", type = "l", lwd=2,
+     main = "Happiness Score Actual vs Predicted",
+     ylab="Happiness Score")
+grid()
+lines(x, predknn_y, col = "turquoise4", lwd=2)
+legend("topright",  legend = c("Actual", "Predicted"), 
+       fill = c("purple3", "turquoise4"), col = 2:3,  adj = c(0, 0.6))
+    text(x=9,y=4.5, round(rmse_knn,4), size=2, col="turquoise4")
+    text(x=5, y=4.5, "RMSE =", size=2, col="turquoise4")
+
+
+
+## ----Improve model by smoothing using Lowess algorithm--------
+# Apply Lowess
+lowess_test <- lowess(predknn_y ~ x, f=2/3)
+# Calculate RMSE
+rmse_lowess_test <- RMSE(knntest_y, lowess_test$y)
+cat(" RMSE: ", round(rmse_lowess_test,4))
+
+
+
+## ----Plot_test_vs_pred_Happ_Score_with_Lowess -----------------
+x = 1:length(knntest_y)
+plot(x, knntest_y, col = "purple3", type = "l", lwd=2,
+     main = "Actual Happiness Score vs Predicted",
+     xlab = "Observation Number of Test Set",
+     ylab="Happiness Score")
+grid()
+lines(x, predknn_y, col = "turquoise4", lwd=2)
+lines(lowess(predknn_y ~ x, f=2/3), col="red", lwd=2)
+legend("topright",  legend = c("Actual (test)", "Predicted", "with Smoothing"), 
+       fill = c("purple3", "turquoise4", "red"), col = 2:3,  adj = c(0, 0.6))
+    text(x=9,y=4.5, round(rmse_knn,4), size=2, col="turquoise4")
+    text(x=5, y=4.5, "RMSE =", size=2, col="turquoise4")
+    text(x=9,y=4, round(rmse_lowess_test,4), size=2, col="red")
+    text(x=5, y=4, "RMSE =", size=2, col="red")
+
+## ----Run_Model_on_Train_and_Val_sets--------------------------
+# Prepare the data (select factors, scale and center)
+haptrain_x <- haptrain[, c(4:7,9)]
+haptrain_x <- scale(haptrain_x)[,]
+haptrain_y <- haptrain[,3]
+
+hapval_x <- knntest[, c(4:7,9)]
+hapval_x <- scale(knntest_x)[,]
+hapval_y <- hapval[,3]
+
+#Run the model and display the final RMSE
+pred_y_knn <- predict(knnmodel, data.frame(hapval_x))
+lowess_val <- lowess(pred_y_knn ~ x, f=2/3)
+rmse_lowess_val <- RMSE(hapval_y, lowess_test$y)
+
+cat(" Final Model RMSE: ", round(rmse_lowess_val,4))
+
+
+## ----Plot Validation vs Predicted Happiness Scores ------------
+x = 1:length(hapval_y)
+
+plot(x, hapval_y, col = "purple3", type = "l", lwd=2,
+     main = "Actual Happiness Score vs Predicted",
+     ylab="Happiness Score",
+     xlab = "Observation Number of Validation Set")
+grid()
+lines(x, pred_y_knn, col = "turquoise4", lwd=1.75)
+lines(lowess_val, col="red", lwd=2)
+legend("topright",  legend = c("Actual (validation)", "Predicted", "with Smoothing"), 
+       fill = c("purple3", "turquoise4", "red"), col = 2:3,  adj = c(0, 0.6))
+text(x=9,y=4.5, round(rmse_lowess_val,4), size=2, col="red")
+    text(x=5, y=4.5, "RMSE =", size=2, col="red")
+
+

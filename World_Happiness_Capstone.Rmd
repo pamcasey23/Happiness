@@ -1,0 +1,565 @@
+---
+title: "World Happiness Report - Capstone Project"
+author: "Pamela Stameris Casey"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+header-includes:
+  \usepackage{fvextra}
+  \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+# 1 Introduction and Goals
+
+## 1.1 How Can We Measure Happiness?
+
+How can we measure and analyze happiness? What external and personal situations are factors of people's happiness? Is it different across the globe? Is anyone keeping track?
+
+Well, someone is keeping track and even sharing that information.
+
+The World Happiness Report (WHR), a publication of the Sustainable Development Solutions Network, is a compilation of data, statistics and analysis based on results from a series of surveys by the Gallup World Poll (GWP) over the last decade, investigating the level of life satisfaction of our global community. The central purpose, as stated in the introduction to each annual report, is "to review the science of measuring and understanding subjective well-being, and to use survey measures of life satisfaction to track the quality of lives as they are being lived in more than 150 countries."
+
+Participants in the Gallup World Poll are asked to imagine their current life situation as a ladder with their best possible life as a 10 and their worst as a 0. Each respondent provides their numerical evaluation, which becomes averaged with other respondents from that country (along with some weighting to ensure population-representative averages), and becomes the "Happiness Score" for the country. Typically about 1000 people are polled from each country surveyed.
+
+Along with the Happiness Score, the World Happiness Report includes six variables (or factors) to help explain the country happiness scores. These six factors are GDP per capita, Social Support, Healthy Life Expectancy, Freedom to Make Life Choices, Generosity, and Perceptions of Corruption. GDP per capita is based on information from the World Bank, while Life Expectancy is based on information from the World Health Organization. The other four factors are based on individual poll answers by respondents. These factors will be described in more detail once the data is downloaded and available for analysis.
+
+## 1.2 Goals for this Project
+
+This project is the final piece of work to be submitted for the edX Data Science Certificate Program offered through Harvard University. It is a self-directed project with student-selected data and student-defined objectives. It seemed very intimidating at first, but after completing the MovieLens Recommendation System project, I felt a sense of confidence in moving forward to this project.
+
+One of the skills at which I wished to become more proficient was Data Visualization. On the MovieLens project, I used basic R plots for graphing my data. For this current project I decided to challenge myself to gain more knowledge and facility with using ggplot and some of its more flexible and visually appealing features. To this end, I have prioritized using ggplot to help me visualize and gain an understanding of the data and to look for patterns within the data with which to create a model.
+
+# 2 Install Programming Packages and Load Data
+
+## 2.1 Install Required Packages
+
+The following packages are used in the analysis and code for creating the model.
+
+```{r Install.packages, message=FALSE, warning=FALSE}
+if(!require(tidyverse)) install.packages(
+  "tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages(
+  "caret", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) install.packages(
+  "data.table", repos = "http://cran.us.r-project.org")
+if(!require(ggcorrplot)) install.packages(
+  "ggcorrplot", repos = "http://cran.us.r-project.org")
+if(!require(ggpubr)) install.packages(
+  "ggpubr", repos = "http://cran.us.r-project.org")
+library(tidyverse)
+library(caret)
+library(data.table)
+library(ggcorrplot)
+library(ggpubr)
+```
+
+## 2.2 Download Data Files
+
+I have obtained data from several sources. I originally discovered the data on Kaggle, one of the course-recommended websites containing a collection of publicly available curated datasets. Kaggle contains datasets of World Happiness survey data for the years 2015 through 2019. These datasets are found here: <https://www.kaggle.com/datasets/unsdsn/world-happiness>.
+
+In researching more about the WHR, I found that data is available directly from their website, which is the source of my data for the years 2020 through 2022: <https://worldhappiness.report/>.
+
+The following code using relative file paths reads the files into my R Script.
+
+```{r Read_Files, echo=TRUE}
+# read WHR files
+whr2015 <- read.csv("data\\2015.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2016 <- read.csv("data\\2016.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2017 <- read.csv("data\\2017.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2018 <- read.csv("data\\2018.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2019 <- read.csv("data\\2019.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2020 <- read.csv("data\\2020.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2021 <- read.csv("data\\2021.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2022 <- read.csv("data\\2022.csv", header=TRUE, stringsAsFactors = FALSE)
+```
+
+## 2.3 Pre-processing of Data
+
+In the sourced data, the column headings differed across the years, so I have standardized the headings and the order of the columns using the following code.
+
+```{r Pre-process_Data}
+# whr2015 Drop columns then reorder when needed 
+whr15 <- whr2015[-c(3,5)]
+whr15 <- whr15[,c(1,3:7,9,8,10,2)]
+whr16 <- whr2016[-c(3,5,6)]
+whr16 <- whr16[,c(1,3:7,9,8,10,2)]
+whr17 <- whr2017[-c(2,4,5)]
+whr18 <- whr2018[-1]
+whr19 <- whr2019[-1]
+whr20 <- whr2020[-c(4:13)]
+whr20 <- whr20[,c(1,3:10,2)]
+whr21 <- whr2021[-c(4:13)]
+whr21 <- whr21[,c(1,3:10,2)]
+whr22 <- whr2022[-c(1,4,5)]
+whr22 <- whr22[-c(147),c(1,2,4:9,3)]
+#Standardize column names across years
+colnames <- 
+  c("Country", "Happiness", "*GDPperCap", "*SocSupport","*LifeExp","*Freedom", "*Generosity", "*GovTrust","DystRes", "Region")
+colnames(whr15) <- colnames
+colnames(whr16) <- colnames
+colnames(whr17) <- colnames[-10]
+colnames(whr18) <- colnames[-c(9,10)]
+colnames(whr19) <- colnames[-c(9,10)]
+colnames(whr20) <- colnames
+colnames(whr21) <- colnames
+colnames(whr22) <- colnames[-10]
+```
+
+I then add a column containing the year of the report to each dataset.
+
+```{r Add_Year_Column, include=FALSE}
+#Add years to each dataset
+whr15 <- cbind(year = 2015, whr15)
+whr16 <- cbind(year = 2016, whr16)
+whr17 <- cbind(year = 2017, whr17)
+whr18 <- cbind(year = 2018, whr18)
+whr19 <- cbind(year = 2019, whr19)
+whr20 <- cbind(year = 2020, whr20)
+whr21 <- cbind(year = 2021, whr21)
+whr22 <- cbind(year = 2022, whr22)
+
+```
+
+# 3 Understanding the Data
+
+## 3.1 Structure of the Data
+
+An example of the structure of the data files for each individual year can be seen below with the first few lines of the dataset from the year 2015. This data is arranged by year and in descending order of Happiness Score for each year.
+
+```{r}
+head(whr15)
+```
+
+The number of countries surveyed each year varies from a low of 146 countries in 2022 to a high of 158 in 2015. The columns I mainly used are Year, Country and Region, along with Happiness and values for the six factors which the WHR have identified as relating to general feelings of happiness. There is one other column which gives the residual from "Dystopia", which represents a made-up country with the combined lowest values of the Happiness Scores and all the factors.
+
+It should be noted that the data in each of these columns is not raw data. For this reason, I have included an asterisk as part of the column headings. These reported values have been processed by the authors/analysts of World Happiness Report and represent the contributions of each factor to the Happiness Score. I was not able to find an account of specifically how these factors were calculated, but together with the base Dystopia value for that year and error, they sum to the Happiness Score. A description of Happiness Score and each of the six factors follows.
+
+The Happiness Score is an average of the responses from the people surveyed from each country of their numerical evaluation of the satisfaction of their lives on a scale from a low of 0 to a high of 10. Two of the factors - **GDP per Capita**, representing the wealth of the country (presented as Logged GDP per Capita), and **Life Expectancy**, representing the health of the people of the country - are data that the WHR got from the World Bank and the World Health Organization respectively. It is important to restate that the values in the datasets are not raw data, but weighted values, calculated by the WHR authors and analysts, corresponding to how much they contribute to the Happiness Score.
+
+The other four factors, also weighted components of the Happiness Score, are based on respondents' answers to the following questions on the survey: **Social Support** - "If you were in trouble, do you have relatives or friends you can count on to help you whenever you need them, or not?" **Freedom to make your own choices** - "Are you satisfied or dissatisfied with your freedom to choose what you do with your life?" **Generosity** - the residual of regressing the national average of GWP responses to the question "Have you donated money to a charity in the past month?" on log GDP per capita. **Perceptions of Corruption (Government Trust)** - "Is corruption widespread throughout the government (or within businesses) in this country, or not?" (This information on the factors came from the World Happiness Report of 2022.)
+
+Although this data is already analyzed and processed by the WHR organization, I felt it would be informative to conduct some investigations and visualizations to see what I could learn from it.
+
+## 3.2 Create Data Set Merging All Years
+
+For flexibility and efficiency in investigating the data, it will be useful to combine all the years into one dataset, which requires reducing the columns to only the shared columns, then binding them all together.
+
+```{r Reduce_and_Bind}
+bind15 <- whr15[-c(10, 11)]
+bind16 <- whr16[-c(10, 11)]
+bind17 <- whr17[-10]
+bind18 <- whr18
+bind19 <- whr19
+bind20 <- whr20[-c(10,11)]
+bind21 <- whr21[-c(10,11)]
+bind22 <- whr22[-10]
+#Bind annual data sets
+whr_all <- rbind(bind15, bind16, bind17, bind18,
+                 bind19, bind20, bind21, bind22)
+```
+
+# 4 Model Development Plan
+
+My initial plan for this project was to follow a similar strategy as the MovieLens project, by building a model which would be able to predict the Happiness Score of a country based on certain inputs corresponding to the factors that are given in the World Happiness Report. I would first create a Naive Model, which would be the average of all the Happiness Scores, then analyze the other factors and see which ones seemed to correspond most directly with Happiness, and use those to add biases to the mean Happiness Score. I soon realized that, because the factors have been already modified to fit the Happiness Score, this would not be a logical or valid method.
+
+Since coming to that conclusion, it was necessary to familiarize myself with the data through analysis and visualization to see what track this project should take. The following graphs and analysis are the output of this investigative process. As I learned more from the data, a new plan emerged for the mission of my project. More on that later....
+
+## 4.1 Summarize Annual Happiness Score Mean and Range.
+
+Because the World Happiness Report is focused on the global happiness level of people, I wanted to get a good idea of what the distribution of Happiness Scores looks like over the possible scores from 0 to 10. My first pass at this is to make a table of minimum, mean and maximum scores over the years. This table is shown below. We can see that the scores are between about 2.4 and 7.8, and are quite similar over the years.
+
+```{r Happiness_Score_Stats}
+annual_Happ_range <- whr_all %>% 
+  group_by(year) %>% summarize(Happiness.low=min(Happiness), Happiness.mean=mean(Happiness), Happiness.high=max(Happiness))
+annual_Happ_range
+```
+
+## 4.2 Happiness Score Distribution Curve
+
+It is also helpful to see a visualization of Happiness Scores in in the form of a Density Plot. I chose the year 2019 for this data (for no particular reason). It is a fairly symmetrical distribution around the mean.
+
+```{r Happiness_Scores_Density_Plot, echo=FALSE, out.width="75%", fig.align='center'}
+Happ_dens <- ggplot(whr19, aes(x=Happiness)) + 
+  geom_density(color="darkblue", fill="skyblue2")+
+  scale_x_continuous(limits = c(0,10))+
+  geom_vline(aes(xintercept=mean(Happiness)),
+            color="darkblue", linetype="dashed", size=1)+
+  geom_text(aes(label="mean =",1.1,0.275),size=3.5)+
+  geom_text(aes(label="sd =",1.3,0.225),size=3.5)+
+  geom_text(aes(label=round(mean(Happiness),2),2,0.275),size=3.5)+
+  geom_text(aes(label=round(sd(Happiness),2),2,0.225), size=3.5)+
+  labs(title="Happiness Score Distribution and Mean 2019",
+        x="Happiness Score", y="Density")+
+  theme(plot.title = element_text(hjust = 0.5))
+  
+Happ_dens
+```
+
+## 4.3 Visualization of Annual Happiness Scores
+
+Finally, I wanted to see if and how the happiness score distribution changed from year to year. The following violin plots, combined with box plots, shows the distribution of happiness scores from 2015 to 2022. It is evident that there hasn't been much change in range and quartiles. I was expecting that there would have been a decrease in happiness scores in report years 2021 and 2022 because of the life changes caused by the pandemic, but was surprised to see that they remain at basically the same levels as in all the previous years.
+
+```{r Violin_Plot_Years, echo=FALSE, out.width="75%", fig.align='center'}
+plot_Happ_range <- whr_all %>% group_by(as.factor(year)) %>% 
+  ggplot(aes(x=as.factor(year), y=Happiness, 
+             color=as.factor(year)), 
+         title="Happiness Scores Distribution") + 
+  geom_violin(aes(color=as.factor(year)), trim=F)+
+  geom_boxplot(width=0.1)+
+  scale_y_continuous(limits = c(0,10))+
+  scale_color_brewer(palette = "Dark2")+
+  theme(legend.position="none")+
+  labs(title="Happiness Distribution",
+        x ="Years", y="Happiness Score")+
+  theme(plot.title = element_text(hjust = 0.5))
+plot_Happ_range
+```
+
+## 4.4 Factor Contribution to Happiness
+
+My next investigation is to visualize the contribution level of each of the factors to the Happiness Score. For this analysis, I chose the year 2019, and averaged the values from each factor column, resulting in the average contribution over all the countries of the contribution of each factor. The actual averages are shown below, followed by a bar graph representing the level of contribution for each factor.
+
+```{r Calculate_Factor_Means_2019}
+factors <- whr19 %>% select(4:9)
+factor_means <- colMeans(factors)
+factor_means
+```
+
+```{r Factor_bar_chart, echo=FALSE, out.width="60%", fig.align='center'}
+factor <- colnames(factors)
+factor_means_df <- data.frame(factor, factor_means)
+factor_plot  <- factor_means_df %>% 
+  ggplot(aes(x=factor, y=factor_means, fill=factor)) +
+           geom_bar(stat="identity")+
+  theme(legend.position="none")+
+  scale_color_brewer(palette = "Dark2")+
+    labs(title="Factor Contributions to Happiness Score 2019",
+        x ="Factors", y="Contribution to Happiness")+
+  theme(plot.title = element_text(hjust = 0.5))
+factor_plot
+
+```
+
+# 5 The 2020 Dataset "Bonus" Columns
+
+## 5.1 Details of the Bonus Columns
+
+While investigating the WHR data for the various years, I noticed that the 2020 World Happiness Report has some data columns not included in the datasets of the other years. In addition to the columns with the "as explained by" columns for the six factors as in the datasets of the other years, it has original "bonus" data which has not been processed like the factor columns in the other years. It is more like "raw" data based on actual averages of survey results, or factual data regarding GDP per capita (in dollars) and Life Expectancy (in years). It is these columns that led me to my ultimate project plan.
+
+These extra columns in the 2020 dataset are the values that led to the processed data that appears in the columns with the asterisks in the data of the other years. In the WHR dataset, they have kind of awkward names, so I will rename them later.
+
+```{r Bonus_Column_Names, echo=FALSE}
+colnames(whr2020[7:12])
+
+```
+
+These columns represent the raw data from which the "as explained by" columns got their values. The Logged.GDP is the actual log (base 10) of the GDP for each country. The Life Expectancy column is the expected life span (in years) of people in each country. The Social Support, Freedom to Make Life Choices, and Perceptions of Corruption (aka Government Trust) columns are based on averages of the survey responses. The Generosity column has some negative numbers in it, so I don't know how it was calculated.
+
+## 5.2 Reformulation and Refocus of Model Development
+
+Once I discovered the existence and utility of these columns, I realized that they could possibly be used as predictors for creating a model for predicting the Happiness Score. This finally became the objective of my project: **To create a model which predicts the Happiness Scores of countries based on the numerical values of measured and surveyed factors.**
+
+To this end, I decided to use the year 2020, and these factors along with the country Happiness Scores to create the model. I will use the root mean square error (RMSE) as a measure to assess the accuracy of the model. In determining a target RMSE, I thought back to the MovieLens project. In that project, our goal was below 0.86490, given a range of 5 stars. The Happiness Score in this data also has a range of about 5 points on the ladder score of 1 to 10 (low of 2.4 to high of 7.8), so I figured that this might be an acceptable RMSE target for this project as well. Perhaps it will be unattainable, or perhaps it is not an aggressive enough target, but I will use it as a preliminary goal, at least.
+
+## 5.3 Streamlining Data for Analysis
+
+At this point, I will streamline the 2020 data by selecting the necessary columns and simplifying the factor column names to the same as the column names from the other years, but with the asterisk eliminated. Shown below are the first 5 and last 5 rows of the streamlined 2020 dataset.
+
+```{r Simplify_2020, echo=FALSE}
+happy <- whr2020 %>% select(1:3,7:12)
+colnames(happy) <- c("Country", "Region", "Happiness", "Log_GDP_percap", "SocSupport", "LifeExp", "Freedom", "Generosity", "GovTrust")
+head(happy,5)
+tail(happy,5)
+```
+
+# 6 Investigating and Analyzing the 2020 Data
+
+The following section includes analysis tools and visualization I used to help me understand the extra data from the 2020 dataset better and to see if any patterns emerged that would help me in my attempt to better model the actual values of Happiness Score based on Wealth (GDP), Social Support, Health (Life Expectancy), Freedom to Make Choices, Generosity and Government Trust.
+
+## 6.1 2020 Wealth and Happiness
+
+### 6.1.1 Graph of Logged GDP vs Happiness Score
+
+Wealth data, as reported in the World Happiness Report, is based on GDP per capita for each country. In the 2020 Report, it is reported as "Logged GDP per capita". I was interested in the relationship between the wealth of the country and the Happiness Score, so I graphed the given data. I included a color key for region, in case a regional pattern that became evident. The graph shows a linear relationship, as shown by the regression line in the graph below, with an R value of 0.78.
+
+```{r Log_GDP_v_Happiness, echo=FALSE, out.width="75%", fig.align='center'}
+LogGDPvsHapp <- ggplot(data=happy, 
+                     aes(x=Log_GDP_percap, 
+                        y=Happiness))+
+      labs(x="log(GDP per capita)", 
+      y="Happiness Score",
+      color="Region",
+      title="Logged GDP per Capita vs Happiness 2020")+
+  geom_point(aes(color=Region))+
+  geom_smooth(method="lm",formula=y~x, 
+              color="slategray", size=0.7)+
+  stat_cor(aes(label=..r.label..),size=3.5, 
+           label.x=10, label.y=4.75) +
+  stat_regline_equation(label.y = 7.25, aes(label = ..eq.label..))
+LogGDPvsHapp
+```
+
+### 6.1.2 Graph of GDP vs Happiness Score
+
+In sharing my investigation observations with some friends, one of them said that she was of the impression that "you can only buy happiness up to a certain level" which corresponds with at least having basic needs met, but then levels off. That statement got me thinking, so I then wrote a formula to calculate the actual GDP (10\^(log(GDP))), and used this as the independent variable. This adjusted graph (below the logged GDP graph) clearly shows the leveling off of the Happiness Score after a certain level of GDP.
+
+```{r GDP_v_Happiness, echo=FALSE, out.width="75%", fig.align='center'}
+GDPvsHappExp <- happy %>%
+  mutate(GDP=10^Log_GDP_percap) %>% 
+  ggplot(aes(x=GDP, y=Happiness))+
+  labs(x="GDP per capita",
+       y="Happiness Score",
+       color="Region",
+       title="GDP per Capita vs Happiness 2020",
+       subtitle="Based on GDP per capita")+
+  geom_point(aes(color=Region))+
+  geom_smooth(method="glm", formula=y~log(x),
+              color="slategray", size=0.7)+
+  stat_cor(aes(label=..r.label..),size=3.5, 
+           label.x=8e+10, label.y=6.25)
+GDPvsHappExp
+```
+
+Based on the behavior shown on these graphs, I feel is is safe to say that GDP per capita, which can be extended to be an indicator of individual income level, can be considered a factor in Happiness level.
+
+## 6.2 2020 Health and Happiness
+
+The relationship of health and Happiness, shown here as a graph of Life Expectancy vs Happiness Score also shows a linear relationship with an R value of 0.77.
+
+```{r LifeExp_v_Happiness, echo=FALSE, out.width="75%", fig.align='center'}
+LifeExpVsHapp <- happy %>%
+  ggplot(aes(x=LifeExp, y=Happiness))+
+  labs(x="Life Expectancy(years)",
+       y="Happiness Score",
+       color="Region",
+       title="Life Expectancy vs Happiness 2020")+
+  geom_point(aes(color=Region))+
+  geom_smooth(method="glm", formula=y~x,
+              color="slategray", size=0.7)+
+  stat_cor(aes(label=..r.label..),size=3.5, 
+           label.x=50, label.y=6.75)+
+  stat_regline_equation(label.y = 7.25, aes(label = ..eq.label..))
+LifeExpVsHapp
+```
+
+Like wealth, it seems that health is also a factor in happiness level.
+
+## 6.3 Social Support, Freedom, Generosity and Government Trust
+
+The following facet plot shows scatterplots and regression equations for the remaining factors. I was able to combine these into a facet plot, as the values were all of the same magnitude. Due to the smaller size, I did not specify the regions for these graphs.
+
+```{r Factor Grid, echo=FALSE, message=FALSE, warning=FALSE}
+#Reformat data into long dataset from wide
+happy_long <- happy %>% select(c(1:3,5,7:9))
+happy_long <- gather(happy_long, key="factor", 
+         value="value", 4:7)
+colnames(happy_long) <- 
+  (c('Country', 'Region', 'Happiness', 
+     'factor', 'value'))
+# Create Facet plot
+grid20 <- ggplot(happy_long,
+                 aes(value, Happiness)) +
+  geom_point(aes(color = factor(factor)))+
+  ylim(0,8)+
+  stat_smooth(method="lm", formula=y~x, 
+              color="gray35")+
+  facet_wrap(vars(factor))+
+  theme(legend.position="none")+
+  labs(title='Factors vs Happiness',
+       subtitle='2020 Raw Data',
+       y="Happiness Score")+
+  stat_cor(aes(label=..r.label..),size=3, 
+           label.x=0.15, label.y=1.65)+
+  stat_regline_equation(label.y = 1.5, 
+            aes(label = ..eq.label..),size=3.25)
+grid20
+
+```
+
+## 6.4 Happiness and Factor Correlation 2020
+
+Combining all the factors from 2020 into one visualization, we can see by looking at the bottom row, the correlation of the "raw" 2020 factors have with the Happiness Score. The factors that have the highest correlation with happiness are GDP per capita, social support, life expectancy and freedom to make life choices. Government trust has a lower correlation, while generosity seems to have no correlation to the Happiness Score.
+
+```{r Factor_Correlation_2020, echo=FALSE, out.width="75%", fig.align='center'}
+raw_2020 <- happy %>% select(c(3:9)) %>% data.matrix()
+corr_all_2020 <- cor(raw_2020)
+cor_plot_2020 <- ggcorrplot(corr_all_2020, type="lower", outline.col="black", colors = c("steelblue3", "yellow", "red3"),
+           lab=TRUE, title="Happiness & Factor Correlation - 2020",
+           method="circle", digits=1, lab_size =2,
+           tl.cex=10)+
+  scale_colour_brewer(palette = "OrRd") +
+  theme(plot.title = element_text(hjust = 0.5))
+cor_plot_2020
+```
+
+Based on this correlation information, I will use all the factors except generosity in creating the model to predict happiness.
+
+# 7 Model Development using K-Nearest Neighbors
+
+Now that I have a pretty good understanding of the data, it is time to decide on a path forward to create a model for predicting the Happiness Score. My plan is to try K-Nearest Neighbors (KNN) machine learning algorithm to see if it results in a model with an acceptable RMSE. The K-Nearest Neighbors algorithm is a supervised machine learning algorithm which uses similarity between features to predict values of new data points. In the context of this project, it uses distances between the country factors to group countries with similar characteristics and (as this is a regression case vs classification) averages the values of the desired result (Happiness Score) to assign a predicted Happiness Score. I thought it would be an effective predictive algorithm in this situation, as it will look at other countries which have similar factor values (GDP, Life Expectancy, etc) to the query country, and use the Happiness Scores of those countries to predict the Happiness Scores of the country in question. The algorithm also samples the data to choose the optimal value of k (the number of neighbors to use). By the way, "neighbors" in this case does not refer to neighboring countries, but closest countries in terms of factor characteristics.
+
+In using the KNN machine learning algorithm, it is necessary to partition the data, leaving a validation set available for testing to calculate the final RMSE, without using it for training. The secondary training set created below will be used to determine the best number of neighbors to use in the model. That value of k will become part of the model, which will then be used on the validation set to determine the final RMSE against the actual Happiness Scores. To use KNN, the data must also be scaled and centered.
+
+## 7.1 Partitioning of the training set
+
+To properly train and test a model it is necessary to create three data sets: a training set, a test set to use to evaluate the model as it is being developed, and a validation set which will be used only after the model has been finalized. The following code first partitions the 2020 dataset into two sets - **haptrain** and **hapval**. It then partitions **haptrain** into a secondary training and test set for the knn model development - **knntrain** and **knntest**. The final validation set **hapval** will not be used until the very end to test the final model, using **haptrain** as its training set. I chose my partition proportions based on wanting no fewer than about 25 observations in my test and validation sets, while still keeping enough observations in my training set to effectively train the model.
+
+```{r Partition_Trains_Tests}
+set.seed(1, sample.kind="Rounding")
+model_test_index <- 
+  createDataPartition(y = happy$Happiness, times = 1, p = 0.17, list = FALSE)
+haptrain <- happy[-model_test_index,]
+hapval <- happy[model_test_index,]
+
+set.seed(2, sample.kind="Rounding")
+model_test_index2 <- 
+  createDataPartition(y = haptrain$Happiness, times = 1, p = 0.2, list = FALSE)
+knntrain <- haptrain[-model_test_index2,]
+knntest <- haptrain[model_test_index2,]
+```
+
+## 7.2 Prepare the data
+
+We will use all predictors except for Generosity, as it has a very low correlation to the Happiness Score in the training dataset. The following code selects the proper columns, then scales and centers the data in preparation for the KNN algorithm.
+
+```{r Prepare_for_knn}
+knntrain_x <- knntrain[, c(4:7,9)]
+knntrain_x <- scale(knntrain_x)[,]
+knntrain_y <- knntrain[,3]
+
+knntest_x <- knntest[, c(4:7,9)]
+knntest_x <- scale(knntest_x)[,]
+knntest_y <- knntest[,3]
+```
+
+## 7.3 Use K-Nearest Neighbor Regression to train using test set
+
+The code below creates a KNN model using the **knntrain** partition, which tests various k values (number of neighbors) from 3 to 25 and reports the results of the samples taken, and finally reports the optimal k and the final RMSE.
+
+```{r Train_with_knn}
+knnmodel <- train(knntrain_x, knntrain_y, method = "knn", tuneGrid = data.frame(k = seq(3, 21, 1)))
+knnmodel
+predknn_y <- predict(knnmodel, data.frame(knntest_x))
+RMSE <- function(true_score, predicted_score){
+  sqrt(mean((true_score - predicted_score)^2))
+}
+rmse_knn <- RMSE(knntest_y, predknn_y)
+
+cat(" RMSE: ", round(rmse_knn,4))
+```
+
+A note regarding the KNN outcome model: Each time model is run, it is possible to have a different result (k-value and RMSE). In doing research on this, I learned that it is due to the stochastic nature of the KNN learning algorithm. I believe this is due to the randomness of the bootstrap resampling. The RMSE values that I kept track of after realizing what was happening ranged from 0.575 to 0.6117. I think this stochasticity just needs to be an accepted variability in the model.
+
+## 7.4 Plot of Test and KNN Predicted Data
+
+The plot created below shows the actual Happiness Scores for the **knntest** partition compared to the the predicted Scores.
+
+```{r Plot_test_vs_pred_Happ_Score, echo=FALSE, fig.align='center', out.width="75%"}
+x = 1:length(knntest_y)
+plot(x, knntest_y, col = "purple3", type = "l", lwd=2,
+     main = "Happiness Score Actual vs Predicted",
+     ylab="Happiness Score")
+grid()
+lines(x, predknn_y, col = "turquoise4", lwd=2)
+legend("topright",  legend = c("Actual", "Predicted"), 
+       fill = c("purple3", "turquoise4"), col = 2:3,  adj = c(0, 0.6))
+    text(x=9,y=4.5, round(rmse_knn,4), size=2, col="turquoise4")
+    text(x=5, y=4.5, "RMSE =", size=2, col="turquoise4")
+
+```
+
+That prediction line looks very choppy, so perhaps it would improve the model to smooth using the Lowess smoothing function. I specified the default f value of 2/3 as shown in the code. The new RMSE is shown below, which is an improvement over the original KNN model, along with the visual result of the smoothing is shown in the following plot.
+
+```{r Lowess_RMSE}
+lowess_test <- lowess(predknn_y ~ x, f=2/3)
+rmse_lowess_test <- RMSE(knntest_y, lowess_test$y)
+cat(" RMSE: ", round(rmse_lowess_test,4))
+
+```
+
+```{r Plot_test_vs_pred_Happ_Score_with_Loess, echo=FALSE, fig.align='center', out.width="75%"}
+x = 1:length(knntest_y)
+plot(x, knntest_y, col = "purple3", type = "l", lwd=2,
+     main = "Actual Happiness Score vs Predicted",
+     xlab = "Observation Number of Test Set",
+     ylab="Happiness Score")
+grid()
+lines(x, predknn_y, col = "turquoise4", lwd=2)
+lines(lowess(predknn_y ~ x, f=2/3), col="red", lwd=2)
+legend("topright",  legend = c("Actual (test)", "Predicted", "with Smoothing"), 
+       fill = c("purple3", "turquoise4", "red"), col = 2:3,  adj = c(0, 0.6))
+    text(x=9,y=4.5, round(rmse_knn,4), size=2, col="turquoise4")
+    text(x=5, y=4.5, "RMSE =", size=2, col="turquoise4")
+    text(x=9,y=4, round(rmse_lowess_test,4), size=2, col="red")
+    text(x=5, y=4, "RMSE =", size=2, col="red")
+
+
+```
+
+Based on this low RMSE which is well below my target, I will consider this model using K-Nearest-Neighbors and Lowess Smoothing to be the final model. Below are the RMSE results and visualization of the model as run on the validation set.
+
+# 8 Results of using the KNN with Lowess Smoothing Model to Predict Happiness Scores on Validation Set
+
+## 8.1 Run Model on the Validation Set
+
+The following code will prepare the validation set for the KNN machine learning algorithm, then use the Lowess Smoothing function to produce the final model results and display the RMSE.
+
+```{r Run_Model_on_Train_and_Val_sets}
+# Prepare the data (select factors, scale and center)
+haptrain_x <- haptrain[, c(4:7,9)]
+haptrain_x <- scale(haptrain_x)[,]
+haptrain_y <- haptrain[,3]
+
+hapval_x <- knntest[, c(4:7,9)]
+hapval_x <- scale(knntest_x)[,]
+hapval_y <- hapval[,3]
+
+#Run the model and display the final RMSE
+pred_y_knn <- predict(knnmodel, data.frame(hapval_x))
+lowess_val <- lowess(pred_y_knn ~ x, f=2/3)
+rmse_lowess_val <- RMSE(hapval_y, lowess_test$y)
+
+cat(" Final Model RMSE: ", round(rmse_lowess_val,4))
+```
+
+## 8.2 Plot of Validation and Predicted Data
+
+The following plot shows the comparison of the actual Happiness Scores with the Scores generated using only KNN and finally, in red, the Scores generated by using Lowess smoothing after KNN. The RMSE is also noted on the plot.
+
+```{r Plot_val_vs_pred_Happ_Score, echo=FALSE, out.width="75%", fig.align='center'}
+x = 1:length(hapval_y)
+
+plot(x, hapval_y, col = "purple3", type = "l", lwd=2,
+     main = "Actual Happiness Score vs Predicted",
+     ylab="Happiness Score",
+     xlab = "Observation Number of Validation Set")
+grid()
+lines(x, pred_y_knn, col = "turquoise4", lwd=1.75)
+lines(lowess_val, col="red", lwd=2)
+legend("topright",  legend = c("Actual (validation)", "Predicted", "with Smoothing"), 
+       fill = c("purple3", "turquoise4", "red"), col = 2:3,  adj = c(0, 0.6))
+text(x=9,y=4.5, round(rmse_lowess_val,4), size=2, col="red")
+    text(x=5, y=4.5, "RMSE =", size=2, col="red")
+
+```
+
+## 8.3 Results Summary
+
+The final model that I developed for predicting the Happiness Score of countries uses the supervised machine learning algorithm K Nearest Neighbors along with the Lowess smoothing algorithm. Using these algorithms has resulted in an RMSE of the predicted Happiness Scores vs the actual Happiness Scores of the validation set of approximately 0.5. This RMSE is well below the target I had set for my project, which was based on the MovieLens project target RMSE. I really had no idea how to set a target, so relied on the only experience I had.
+
+The KNN algorithm has randomness built into it, as it takes random samples of the training set to determine the optimal k-value (number of nearest neighbors) to use in the model. Because of this stochasticity of the KNN algorithm, the k-value, and thus the predicted Happiness Scores can change each time the algorithm is called. After running the model multiple times, I could see the k-value and the RMSE vary each time. The selected k-value varied between 9, 11 and 13. The RMSE on the validation set that has been produced by the model varied, in my iterations, between 0.4943 and 0.5703, so I am not able to report an exact RMSE for my model.
+
+# 9 Conclusions and Further Study
+
+This model, although predictive of Happiness Score, does not provide the contribution of each factor to happiness. As such, I feel that the standalone model is not particularly useful for understanding happiness, or being able to use it to improve the happiness of the global community. The data from the World Happiness Report includes a breakdown of each factor's contribution to the Happiness Score, which is a more useful product than being able to predict happiness level based on the values of the factors.
+
+That said, I feel the real value of this project is the personal benefit to me from all that I have learned by doing this project. I gained understanding and facility with using ggplot to visualize data. I spent time researching KNN and Lowess to be able to use them in my model. I learned what "stochasticity" is, and how randomness affects data analysis and model development. I had to figure out how to create a report that accesses and reads in data from online sources, and how to use relative file paths. I will follow the World Happiness Report in the future, and look for a future year where the unprocessed survey results are provided (what I called "bonus columns"), so I can try my model out on a full set of countries to see how it performs!
