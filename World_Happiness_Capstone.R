@@ -19,14 +19,14 @@ library(ggpubr)
 
 # ## ----Read_Files------------------------------------------------
 # # read WHR annual files from GitHub repo
-whr2015 <- read.csv("data\\2015.csv", header=TRUE, stringsAsFactors = FALSE)
-whr2016 <- read.csv("data\\2016.csv", header=TRUE, stringsAsFactors = FALSE)
-whr2017 <- read.csv("data\\2017.csv", header=TRUE, stringsAsFactors = FALSE)
-whr2018 <- read.csv("data\\2018.csv", header=TRUE, stringsAsFactors = FALSE)
-whr2019 <- read.csv("data\\2019.csv", header=TRUE, stringsAsFactors = FALSE)
-whr2020 <- read.csv("data\\2020.csv", header=TRUE, stringsAsFactors = FALSE)
-whr2021 <- read.csv("data\\2021.csv", header=TRUE, stringsAsFactors = FALSE)
-whr2022 <- read.csv("data\\2022.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2015 <- read.csv("data/2015.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2016 <- read.csv("data/2016.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2017 <- read.csv("data/2017.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2018 <- read.csv("data/2018.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2019 <- read.csv("data/2019.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2020 <- read.csv("data/2020.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2021 <- read.csv("data/2021.csv", header=TRUE, stringsAsFactors = FALSE)
+whr2022 <- read.csv("data/2022.csv", header=TRUE, stringsAsFactors = FALSE)
 
 ## ----Pre-process_Data------------------------------------------------
 # whr2015 Drop unneeded columns then reorder where necessary 
